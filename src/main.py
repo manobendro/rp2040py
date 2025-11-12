@@ -1,40 +1,74 @@
-# Test code from (Source)[https://www.unicorn-engine.org/docs/tutorial.html]
-# to test simple two x86 instruction
-
 from unicorn import *
-from unicorn.x86_const import *
+from unicorn.arm_const import *
+from bootrom_data import bootrom_data
 
-# code to be emulated
-X86_CODE32 = b"\x41\x4a" # INC ecx; DEC edx
-
-# memory address where emulation starts
-ADDRESS = 0x1000000
-
-print("Emulate i386 code")
 try:
-    # Initialize emulator in X86-32bit mode
-    mu = Uc(UC_ARCH_X86, UC_MODE_32)
+    # code to be emulated: ADD R0, R1, R2
+    # THUMB_CODE = b"\x88\x18\xc0\x46"  # machine code for: adds r0, r1, r2; nop
+    THUMB_CODE = bootrom_data  # nop in Thumb mode
 
+    # memory address where emulation starts
+    ROM_ADDRESS = 0x00000000
+    RAM_ADDRESS = 0x20000000
+
+    print("Emulate ARM code")
+    # Initialize emulator in ARM mode
+    mu = Uc(UC_ARCH_ARM, UC_MODE_MCLASS | UC_MODE_LITTLE_ENDIAN)
+    
+    # Memory hook to trace instruction execution
+    mu.hook_add(UC_HOOK_CODE, lambda uc, address, size, user_data: print(f"Executing instruction at 0x{address:X}, size: {size}, opcode: {uc.mem_read(address, size).hex()}"))
+
+    # Hook to print all register values after each instruction
+    def print_registers(uc):
+        registers = {
+            'R0': UC_ARM_REG_R0,
+            'R1': UC_ARM_REG_R1,
+            'R2': UC_ARM_REG_R2,
+            'R3': UC_ARM_REG_R3,
+            'R4': UC_ARM_REG_R4,
+            'R5': UC_ARM_REG_R5,
+            'R6': UC_ARM_REG_R6,
+            'R7': UC_ARM_REG_R7,
+            'R8': UC_ARM_REG_R8,
+            'R9': UC_ARM_REG_R9,
+            'R10': UC_ARM_REG_R10,
+            'R11': UC_ARM_REG_R11,
+            'R12': UC_ARM_REG_R12,
+            'SP': UC_ARM_REG_SP,
+            'LR': UC_ARM_REG_LR,
+            'PC': UC_ARM_REG_PC,
+        }
+        print("Register values:")
+        for name, reg in registers.items():
+            print(f"  {name}: 0x{uc.reg_read(reg):08X}", end='; ')
+
+    mu.hook_add(UC_HOOK_CODE, lambda uc, address, size, user_data: print_registers(uc))
+    
     # map 2MB memory for this emulation
-    mu.mem_map(ADDRESS, 2 * 1024 * 1024)
+    mu.mem_map(ROM_ADDRESS, 16 * 1024) #16kB for ROM
+    mu.mem_map(RAM_ADDRESS, 256 * 1024) #256kB for RAM
+    mu.mem_map(0xd0000000, 0x1000) # Peripherals area for RP2040
 
     # write machine code to be emulated to memory
-    mu.mem_write(ADDRESS, X86_CODE32)
+    mu.mem_write(ROM_ADDRESS, THUMB_CODE)
 
+    # Extract SP and PC values from bootrom_data
+    sp_value = int.from_bytes(bootrom_data[:4], "little")  # First 4 bytes
+    pc_value = int.from_bytes(bootrom_data[4:8], "little")  # Next 4 bytes
+
+    # Set the program counter and stack pointer
+    mu.reg_write(UC_ARM_REG_PC, pc_value)
+    mu.reg_write(UC_ARM_REG_SP, sp_value)
+    
     # initialize machine registers
-    mu.reg_write(UC_X86_REG_ECX, 0x1234)
-    mu.reg_write(UC_X86_REG_EDX, 0x7890)
+    mu.reg_write(UC_ARM_REG_R1, 5)  # R1 = 5
+    mu.reg_write(UC_ARM_REG_R2, 10) # R2 = 10
 
     # emulate code in infinite time & unlimited instructions
-    mu.emu_start(ADDRESS, ADDRESS + len(X86_CODE32))
+    mu.emu_start(pc_value, ROM_ADDRESS + len(THUMB_CODE))
 
     # now print out some registers
-    print("Emulation done. Below is the CPU context")
-
-    r_ecx = mu.reg_read(UC_X86_REG_ECX)
-    r_edx = mu.reg_read(UC_X86_REG_EDX)
-    print(">>> ECX = 0x%x" %r_ecx)
-    print(">>> EDX = 0x%x" %r_edx)
-
+    r0 = mu.reg_read(UC_ARM_REG_R0)
+    print("Emulation done. R0 = %d" % r0)  # should print 15
 except UcError as e:
     print("ERROR: %s" % e)
