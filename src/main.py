@@ -7,16 +7,24 @@ try:
     # THUMB_CODE = b"\x88\x18\xc0\x46"  # machine code for: adds r0, r1, r2; nop
     THUMB_CODE = bootrom_data  # nop in Thumb mode
 
-    # memory address where emulation starts
-    ROM_ADDRESS = 0x00000000
-    RAM_ADDRESS = 0x20000000
+    # RP2040 Memory Map addresses
+    ROM_ADDRESS = 0x00000000      # ROM
+    XIP_ADDRESS = 0x10000000      # XIP (Execute-in-place flash)
+    SRAM_ADDRESS = 0x20000000     # SRAM
+    APB_ADDRESS = 0x40000000      # APB Peripherals
+    AHB_ADDRESS = 0x50000000      # AHB-Lite Peripherals
+    IOPORT_ADDRESS = 0xd0000000   # IOPORT Registers
+    CORTEX_ADDRESS = 0xe0000000   # Cortex-M0+ internal registers
+    
+    # Legacy alias for compatibility
+    RAM_ADDRESS = SRAM_ADDRESS
 
     print("Emulate ARM code")
     # Initialize emulator in ARM mode
     mu = Uc(UC_ARCH_ARM, UC_MODE_MCLASS | UC_MODE_LITTLE_ENDIAN)
     
     # Memory hook to trace instruction execution
-    mu.hook_add(UC_HOOK_CODE, lambda uc, address, size, user_data: print(f"Executing instruction at 0x{address:X}, size: {size}, opcode: {uc.mem_read(address, size).hex()}"))
+    mu.hook_add(UC_HOOK_CODE, lambda uc, address, size, user_data: print(f"\nExecuting instruction at 0x{address:X}, size: {size}, opcode: {uc.mem_read(address, size).hex()}"))
 
     # Hook to print all register values after each instruction
     def print_registers(uc):
@@ -40,14 +48,19 @@ try:
         }
         print("Register values:")
         for name, reg in registers.items():
-            print(f"  {name}: 0x{uc.reg_read(reg):08X}", end='; ')
+            print(f" {name}: 0x{uc.reg_read(reg):08X}", end=';')
+        print('\n', end='')
 
     mu.hook_add(UC_HOOK_CODE, lambda uc, address, size, user_data: print_registers(uc))
     
-    # map 2MB memory for this emulation
-    mu.mem_map(ROM_ADDRESS, 16 * 1024) #16kB for ROM
-    mu.mem_map(RAM_ADDRESS, 256 * 1024) #256kB for RAM
-    mu.mem_map(0xd0000000, 0x1000) # Peripherals area for RP2040
+    # Map RP2040 memory regions according to the memory map
+    mu.mem_map(ROM_ADDRESS, 16 * 1024)          # 0x00000000 - 16KB ROM
+    mu.mem_map(XIP_ADDRESS, 16 * 1024 * 1024)   # 0x10000000 - 16MB XIP (flash)
+    mu.mem_map(SRAM_ADDRESS, 264 * 1024)        # 0x20000000 - 264KB SRAM
+    mu.mem_map(APB_ADDRESS, 16 * 1024 * 1024)   # 0x40000000 - APB Peripherals
+    mu.mem_map(AHB_ADDRESS, 16 * 1024 * 1024)   # 0x50000000 - AHB-Lite Peripherals
+    mu.mem_map(IOPORT_ADDRESS, 16 * 1024 * 1024)# 0xd0000000 - IOPORT Registers
+    # mu.mem_map(CORTEX_ADDRESS, 1 * 1024 * 1024) # 0xe0000000 - Cortex-M0+ internal registers
 
     # write machine code to be emulated to memory
     mu.mem_write(ROM_ADDRESS, THUMB_CODE)
