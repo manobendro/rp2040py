@@ -62,7 +62,8 @@ class SIO(Peripheral):
         
         elif offset == self.GPIO_HI_IN:
             # Return QSPI GPIO input value (stub: always 0)
-            return 0
+            # TODO: Just enabling CSn pin bit 2, NOTE:  0..5: SCLK, SSn, SD0, SD1, SD2, SD3
+            return 0b000010
         
         elif offset == self.GPIO_OUT:
             return self.gpio_out

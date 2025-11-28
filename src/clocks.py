@@ -160,7 +160,7 @@ class Clocks(Peripheral):
         
         # GPOUT0
         if offset == self.CLK_GPOUT0_CTRL:
-            return self.clk_gpout0_ctrl
+            return self.clk_gpout0_ctrl & 0b100110001110111100000
         elif offset == self.CLK_GPOUT0_DIV:
             return self.clk_gpout0_div
         elif offset == self.CLK_GPOUT0_SELECTED:
@@ -168,7 +168,7 @@ class Clocks(Peripheral):
         
         # GPOUT1
         elif offset == self.CLK_GPOUT1_CTRL:
-            return self.clk_gpout1_ctrl
+            return self.clk_gpout1_ctrl & 0b100110001110111100000
         elif offset == self.CLK_GPOUT1_DIV:
             return self.clk_gpout1_div
         elif offset == self.CLK_GPOUT1_SELECTED:
@@ -176,7 +176,7 @@ class Clocks(Peripheral):
         
         # GPOUT2
         elif offset == self.CLK_GPOUT2_CTRL:
-            return self.clk_gpout2_ctrl
+            return self.clk_gpout2_ctrl & 0b100110001110111100000
         elif offset == self.CLK_GPOUT2_DIV:
             return self.clk_gpout2_div
         elif offset == self.CLK_GPOUT2_SELECTED:
@@ -184,7 +184,7 @@ class Clocks(Peripheral):
         
         # GPOUT3
         elif offset == self.CLK_GPOUT3_CTRL:
-            return self.clk_gpout3_ctrl
+            return self.clk_gpout3_ctrl & 0b100110001110111100000
         elif offset == self.CLK_GPOUT3_DIV:
             return self.clk_gpout3_div
         elif offset == self.CLK_GPOUT3_SELECTED:
@@ -192,29 +192,29 @@ class Clocks(Peripheral):
         
         # REF
         elif offset == self.CLK_REF_CTRL:
-            return self.clk_ref_ctrl
+            return self.clk_ref_ctrl & 0b000001100011
         elif offset == self.CLK_REF_DIV:
-            return self.clk_ref_div
+            return self.clk_ref_div & 0x30
         elif offset == self.CLK_REF_SELECTED:
-            return self._get_selected(self.clk_ref_ctrl)
+            return 1 << (self.clk_ref_ctrl & 0x30)
         
         # SYS
         elif offset == self.CLK_SYS_CTRL:
-            return self.clk_sys_ctrl
+            return self.clk_sys_ctrl & 0b000011100001
         elif offset == self.CLK_SYS_DIV:
             return self.clk_sys_div
         elif offset == self.CLK_SYS_SELECTED:
-            return self._get_selected(self.clk_sys_ctrl)
+            return 1 << (self.clk_sys_ctrl & 0x01)
         
         # PERI
         elif offset == self.CLK_PERI_CTRL:
-            return self.clk_peri_ctrl
+            return self.clk_peri_ctrl & 0b110011100000
         elif offset == self.CLK_PERI_SELECTED:
             return self._get_selected(self.clk_peri_ctrl)
         
         # USB
         elif offset == self.CLK_USB_CTRL:
-            return self.clk_usb_ctrl
+            return self.clk_usb_ctrl & 0b100110000110011100000
         elif offset == self.CLK_USB_DIV:
             return self.clk_usb_div
         elif offset == self.CLK_USB_SELECTED:
@@ -222,25 +222,25 @@ class Clocks(Peripheral):
         
         # ADC
         elif offset == self.CLK_ADC_CTRL:
-            return self.clk_adc_ctrl
+            return self.clk_adc_ctrl & 0b100110000110011100000
         elif offset == self.CLK_ADC_DIV:
-            return self.clk_adc_div
+            return self.clk_adc_div & 0x30
         elif offset == self.CLK_ADC_SELECTED:
             return self._get_selected(self.clk_adc_ctrl)
         
         # RTC
         elif offset == self.CLK_RTC_CTRL:
-            return self.clk_rtc_ctrl
+            return self.clk_rtc_ctrl & 0b100110000110011100000
         elif offset == self.CLK_RTC_DIV:
-            return self.clk_rtc_div
+            return self.clk_rtc_div & 0x30
         elif offset == self.CLK_RTC_SELECTED:
             return self._get_selected(self.clk_rtc_ctrl)
         
         # RESUS
         elif offset == self.CLK_SYS_RESUS_CTRL:
-            return self.clk_sys_resus_ctrl
+            return 0xff
         elif offset == self.CLK_SYS_RESUS_STATUS:
-            return self.clk_sys_resus_status
+            return 0x00
         
         # Frequency counter
         elif offset == self.FC0_REF_KHZ:

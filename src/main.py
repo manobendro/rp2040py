@@ -4,6 +4,9 @@ from bootrom_data import bootrom_data
 from sio import SIO
 from resets import Resets
 from clocks import Clocks
+from xosc import XOSC
+from pll import PLL
+from ssi import SSI
 
 def scs_hook(uc, access, address, size, value, user_data):
     if access == UC_MEM_WRITE:
@@ -20,6 +23,7 @@ try:
     # RP2040 Memory Map addresses
     ROM_ADDRESS = 0x00000000      # ROM
     XIP_ADDRESS = 0x10000000      # XIP (Execute-in-place flash)
+    SSI_ADDRESS = 0x18000000      # SSI (QSPI flash controller)
     SRAM_ADDRESS = 0x20000000     # SRAM
     APB_ADDRESS = 0x40000000      # APB Peripherals
     AHB_ADDRESS = 0x50000000      # AHB-Lite Peripherals
@@ -65,31 +69,35 @@ try:
     
     # Memory hooks for peripheral regions
     def apb_hook(uc, access, address, size, value, user_data):
+        pc = uc.reg_read(UC_ARM_REG_PC)
         if access == UC_MEM_WRITE:
-            print(f"APB Write: 0x{address:08X} = 0x{value:08X}")
+            print(f"[PC:0x{pc:08X}] APB Write: 0x{address:08X} = 0x{value:08X}")
         else:
-            print(f"APB Read: 0x{address:08X}")
+            print(f"[PC:0x{pc:08X}] APB Read: 0x{address:08X}")
         return True
     
     def ahb_hook(uc, access, address, size, value, user_data):
+        pc = uc.reg_read(UC_ARM_REG_PC)
         if access == UC_MEM_WRITE:
-            print(f"AHB Write: 0x{address:08X} = 0x{value:08X}")
+            print(f"[PC:0x{pc:08X}] AHB Write: 0x{address:08X} = 0x{value:08X}")
         else:
-            print(f"AHB Read: 0x{address:08X}")
+            print(f"[PC:0x{pc:08X}] AHB Read: 0x{address:08X}")
         return True
     
     def ioport_hook(uc, access, address, size, value, user_data):
+        pc = uc.reg_read(UC_ARM_REG_PC)
         if access == UC_MEM_WRITE:
-            print(f"IOPORT Write: 0x{address:08X} = 0x{value:08X}")
+            print(f"[PC:0x{pc:08X}] IOPORT Write: 0x{address:08X} = 0x{value:08X}")
         else:
-            print(f"IOPORT Read: 0x{address:08X}")
+            print(f"[PC:0x{pc:08X}] IOPORT Read: 0x{address:08X}")
         return True
     
     def cortex_hook(uc, access, address, size, value, user_data):
+        pc = uc.reg_read(UC_ARM_REG_PC)
         if access == UC_MEM_WRITE:
-            print(f"CORTEX Write: 0x{address:08X} = 0x{value:08X}")
+            print(f"[PC:0x{pc:08X}] CORTEX Write: 0x{address:08X} = 0x{value:08X}")
         else:
-            print(f"CORTEX Read: 0x{address:08X}")
+            print(f"[PC:0x{pc:08X}] CORTEX Read: 0x{address:08X}")
         return True
     
     mu.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, apb_hook, 
@@ -110,9 +118,19 @@ try:
     # Create Clocks peripheral
     clocks = Clocks(base_address=0x40008000)
     
+    # Create XOSC peripheral
+    xosc = XOSC(base_address=0x40024000)
+    
+    # Create PLL_SYS peripheral
+    pll_sys = PLL(name="PLL_SYS", base_address=0x40028000)
+    
+    # Create SSI peripheral
+    ssi = SSI(base_address=SSI_ADDRESS)
+    
     # Map RP2040 memory regions according to the memory map
     mu.mem_map(ROM_ADDRESS, 16 * 1024)          # 0x00000000 - 16KB ROM
     mu.mem_map(XIP_ADDRESS, 16 * 1024 * 1024)   # 0x10000000 - 16MB XIP (flash)
+    mu.mem_map(SSI_ADDRESS, 4 * 1024)           # 0x18000000 - SSI (QSPI controller)
     mu.mem_map(SRAM_ADDRESS, 264 * 1024)        # 0x20000000 - 264KB SRAM
     mu.mem_map(APB_ADDRESS, 16 * 1024 * 1024)   # 0x40000000 - APB Peripherals
     mu.mem_map(AHB_ADDRESS, 16 * 1024 * 1024)   # 0x50000000 - AHB-Lite Peripherals
@@ -127,6 +145,15 @@ try:
     
     # Register Clocks peripheral hooks
     clocks.register_hooks(mu)
+    
+    # Register XOSC peripheral hooks
+    xosc.register_hooks(mu)
+    
+    # Register PLL_SYS peripheral hooks
+    pll_sys.register_hooks(mu)
+    
+    # Register SSI peripheral hooks
+    ssi.register_hooks(mu)
 
     # write machine code to be emulated to memory
     mu.mem_write(ROM_ADDRESS, THUMB_CODE)
@@ -151,4 +178,27 @@ try:
     print("Emulation done. R0 = %d" % r0)  # should print 15
 except UcError as e:
     print("ERROR: %s" % e)
+    # Print additional debug info
+    try:
+        pc = mu.reg_read(UC_ARM_REG_PC)
+        sp = mu.reg_read(UC_ARM_REG_SP)
+        lr = mu.reg_read(UC_ARM_REG_LR)
+        print(f"  PC: 0x{pc:08X}")
+        print(f"  SP: 0x{sp:08X}")
+        print(f"  LR: 0x{lr:08X}")
+        # Try to read opcode at PC
+        try:
+            opcode = mu.mem_read(pc, 4)
+            print(f"  Opcode at PC: {opcode.hex()}")
+        except:
+            print("  Could not read opcode at PC")
+        # Print all registers
+        print("  Registers:")
+        for i, name in enumerate(['R0', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 
+                                   'R8', 'R9', 'R10', 'R11', 'R12']):
+            reg_const = getattr(UC_ARM_REG_R0.__class__, f'UC_ARM_REG_R{i}', UC_ARM_REG_R0 + i)
+            val = mu.reg_read(UC_ARM_REG_R0 + i)
+            print(f"    {name}: 0x{val:08X}")
+    except:
+        print("  Could not read registers")
     
